@@ -1,10 +1,5 @@
 # Automated Odoo Invoicing Workflow Agent — Design Doc
 
-**Exercise:** Huma — Human Agent take-home · **Author:** Mann · **Clock:** ~7h to call
-
-This doc is both the design walkthrough for the call and the working plan I built against.
-It's deliberately scoped to what a half-day, well-reasoned slice can credibly deliver.
-
 ## 1. Problem framing & scope
 
 The brief's four stages (monitor → identify → parse → push to Odoo) are the skeleton.
@@ -12,7 +7,6 @@ The actual hard problems live in the **validation layer** and in **deciding when
 that's where I spent the design effort, because that's what the rubric ("human-in-the-loop
 judgement", "validation & compliance") is really scoring.
 
-**What v0.5 (this submission) actually does, end to end, for real:**
 
 | Stage | Real or mocked? |
 |---|---|
