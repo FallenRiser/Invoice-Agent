@@ -1,0 +1,8 @@
+# Vendors approved via manual Supplier Evaluation (SE) review AFTER the original
+# Approved Supplier List.xlsx was issued. Additive only -- this agent never edits
+# the xlsx itself. Entries here are picked up on the next check, no restart needed.
+
+overrides:
+- vendor_name: Northwind Office Supplies Ltd
+  approved_by: Dashboard (SE review)
+  date_approved: '2026-06-16'

@@ -1,0 +1,128 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Invoice Processing Agent — Central Configuration
+# ─────────────────────────────────────────────────────────────────────────────
+# All tunable knobs live here. Restart the agent after editing this file.
+# Secrets (passwords, API keys) go in .env — never here.
+# ─────────────────────────────────────────────────────────────────────────────
+
+llm:
+  # Ollama model to use. Must be pulled locally: `ollama pull <model>`
+  model: "gemma3:4b"
+
+  # Ollama server address
+  base_url: "http://localhost:11434"
+
+  # Sampling temperature — 0.0 = fully deterministic (recommended for extraction)
+  temperature: 0.0
+
+  # Nucleus sampling — consider tokens with cumulative probability up to top_p
+  top_p: 0.9
+
+  # Top-k sampling — limit candidates to k most likely tokens
+  top_k: 40
+
+  # Context window size (tokens). Keep low to reduce VRAM / RAM usage.
+  # Bumped from 2048 -> 4096: a repair retry appends the model's bad
+  # response + a correction message to the conversation, which can push a
+  # tight 2048 window over budget on the second attempt.
+  num_ctx: 4096
+
+  # Maximum tokens to generate in the response
+  num_predict: 1024
+
+  # How long to keep the model loaded in VRAM between calls.
+  # "10m" prevents cold-start reload costs when invoices arrive close together.
+  keep_alive: "10m"
+
+  # Disable hidden "thinking" mode. Hybrid reasoning models (the Qwen3
+  # family, e.g. qwen3.5:0.8b) emit a <think>...</think> block before their
+  # real answer. With a small num_predict budget the model can spend the
+  # whole budget on that hidden reasoning and return completely empty
+  # content -- which is exactly the "does nothing, gives error" symptom.
+  # Setting this to false forces a direct answer. It's a harmless no-op for
+  # models that don't support reasoning (e.g. gemma3:4b).
+  reasoning: false
+
+  # How many times the model is given a chance to repair its own malformed
+  # JSON (shown its bad output + the exact parse error) before the file is
+  # given up on and routed to manual review.
+  max_repair_retries: 1
+
+
+paths:
+  inbox:    "data/inbox"
+  processed: "data/processed"
+  logs:     "logs"
+  log_file: "agent.log"
+  db:       "data/agent.db"
+  approved_suppliers_xlsx: "data/Approved Supplier List.xlsx"
+
+
+validation:
+  # Absolute tolerance (same units as total_amount) allowed when comparing
+  # deterministic arithmetic against the figures the LLM reported:
+  #   - per line item:  quantity * unit_price  vs  stated amount
+  #   - invoice total:   sum(line item amounts) + tax_amount  vs  total_amount
+  # Real invoices round to 2 decimal places, so a cent of slack absorbs that
+  # without masking genuine extraction errors. The invoice-total check scales
+  # this by the number of line items, since per-line rounding can compound.
+  amount_tolerance: 0.01
+
+
+# Which extracted fields gate auto-posting. A missing value here routes the
+# invoice to INCOMPLETE human review instead of Odoo. Per the brief: vendor,
+# invoice number, invoice date, total amount, line item detail, payment
+# terms, and due date are all mandatory.
+completeness:
+  mandatory_fields:
+    - vendor_name
+    - invoice_number
+    - invoice_date
+    - total_amount
+    - payment_terms
+    - due_date
+    - line_items
+
+  # due_date is exempt from the mandatory list above when payment_terms
+  # indicates the charge is immediate/already settled (card-on-file,
+  # auto-charge) -- there genuinely is no future due date on those documents
+  # (see the AWS sample, "Card on file"). Matched case-insensitively.
+  immediate_payment_terms_markers:
+    - "charged to card"
+    - "card on file"
+    - "paid"
+    - "immediate"
+
+
+vendor_match:
+  # Below this normalized-name similarity score (0-100, rapidfuzz
+  # token_sort_ratio), a vendor is treated as NOT on the approved list.
+  # Between this and 100 but not an exact match, it's still flagged for
+  # human review rather than silently auto-approved.
+  fuzzy_threshold: 90
+  strip_suffixes:
+    - "Ltd"
+    - "Limited"
+    - "Inc"
+    - "Inc."
+    - "LLC"
+    - "SARL"
+    - "Pty"
+    - "Pty Ltd"
+    - "Pty Ltd."
+    - "Corp"
+    - "Corporation"
+
+
+odoo:
+  # "live" (real XML-RPC against a running Odoo) or "mock" (in-memory, no
+  # Odoo needed -- the default here since no live Odoo instance is reachable
+  # from this environment). Flip to "live" once pointed at a real instance;
+  # credentials come from the environment (ODOO_USERNAME / ODOO_PASSWORD),
+  # never from this file.
+  mode: "live"
+  url: "http://localhost:8069"
+  db: "huma_invoices"
+  # Whether to call action_post (finalize) after creating the draft bill, or
+  # leave it as a draft for a human to confirm in the Odoo UI.
+  auto_post: true
