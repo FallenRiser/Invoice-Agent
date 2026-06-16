@@ -1,7 +1,5 @@
 # Odoo setup (self-hosted via Podman)
 
-Run this yourself, locally. Total time: ~15–25 min, mostly unattended image pulls.
-
 ## 1. Make sure Podman is ready
 
 ```powershell
